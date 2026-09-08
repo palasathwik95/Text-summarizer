@@ -1,6 +1,8 @@
 # Summarizer-HF
 Text Summarizer App - Transformer Minor Project (using HuggingFace &amp; FastAPI)
 
+Users can enter long text or dialogue through a browser interface. The FastAPI backend processes the input using a T5 transformer model and returns a concise summary.
+
 ## Run locally
 
 Install the dependencies, then start FastAPI from this directory:
