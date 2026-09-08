@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import torch
@@ -6,16 +7,26 @@ import re
 from fastapi.templating import Jinja2Templates # UI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 app = FastAPI(title="Text Summarizer App", description="Text Summarization using T5", version="1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-model = T5ForConditionalGeneration.from_pretrained("./saved_summary_model")
-tokenizer = T5Tokenizer.from_pretrained("./saved_summary_model")
+model_path = Path(__file__).parent / "saved_summary_model"
+model_name = str(model_path) if model_path.is_dir() else "t5-small"
+model = T5ForConditionalGeneration.from_pretrained(model_name)
+tokenizer = T5Tokenizer.from_pretrained(model_name)
 
 # device
 if torch.backends.mps.is_available():
     device = torch.device("mps")
-elif torch.cuda.is_availanle():
+elif torch.cuda.is_available():
     device = torch.device("cuda")
 else:
     device = torch.device("cpu")
@@ -36,10 +47,11 @@ def clean_data(text):
 
 def summarize_dialogue(dialogue : str) -> str:
     dialogue = clean_data(dialogue) # clean
+    prompt = dialogue if model_name != "t5-small" else f"summarize: {dialogue}"
 
     # tokenize
     inputs = tokenizer(
-        dialogue,
+        prompt,
         padding="max_length",
         max_length=512,
         truncation=True,
@@ -69,4 +81,8 @@ async def summarize(dialogue_input: DialogueInput):
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={},
+    )
